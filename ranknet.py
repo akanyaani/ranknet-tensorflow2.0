@@ -17,6 +17,7 @@ class BaseTFModel(tf.keras.Model):
 		self.test_writer = None
 		self.ckpt_manager = None
 		self.val_loss = 1000.0
+		self.train_fuc = None
 
 	def create_optimizer(self, optimizer_type):
 		with tf.name_scope("optimizer"):
@@ -157,148 +158,135 @@ class LTRModelRanknet(BaseTFModel):
 
 		return loss
 
+	def _get_lambdas(self, pred_score, labels):
+		"""https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf
+		As explained in equation 3
+		(1/2(1−Sij)−1/1+eσ(si−sj))"""
 
-def _get_lambdas(self, pred_score, labels):
-	"""https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf
-	As explained in equation 3
-	(1/2(1−Sij)−1/1+eσ(si−sj))"""
+		diff_matrix = labels - tf.transpose(labels)
+		label_diff_matrix = tf.maximum(tf.minimum(1., diff_matrix), -1.)
 
-	diff_matrix = labels - tf.transpose(labels)
-	label_diff_matrix = tf.maximum(tf.minimum(1., diff_matrix), -1.)
+		pred_diff_matrix = pred_score - tf.transpose(pred_score)
+		lambdas = self.sigma * ((1 / 2) * (1 - label_diff_matrix) - \
+								tf.nn.sigmoid(-self.sigma * pred_diff_matrix))
 
-	pred_diff_matrix = pred_score - tf.transpose(pred_score)
-	lambdas = self.sigma * ((1 / 2) * (1 - label_diff_matrix) - \
-							tf.nn.sigmoid(-self.sigma * pred_diff_matrix))
+		return lambdas
 
-	return lambdas
+	def _train_step(self, inputs, target):
+		with tf.GradientTape() as tape:
+			pred_score = self(inputs, training=tf.constant(True))
+			loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
 
+		with tf.name_scope("gradients"):
+			gradients = tape.gradient(loss, self.trainable_variables)
+			if self.grad_clip:
+				gradients = [(tf.clip_by_value(grad, -self.clip_value, self.clip_value))
+							 for grad in gradients]
+			self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
-def _train_step(self, inputs, target):
-	with tf.GradientTape() as tape:
-		pred_score = self(inputs, training=tf.constant(True))
-		loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
+		step = self.optimizer.iterations
 
-	with tf.name_scope("gradients"):
-		gradients = tape.gradient(loss, self.trainable_variables)
+		return step, loss, tf.squeeze(pred_score)
+
+	def _factorized_train_step(self, inputs, target):
+		with tf.GradientTape(persistent=True) as tape:
+			pred_score = tf.squeeze(self(inputs, training=tf.constant(True)))
+			loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
+			lambdas = self._get_lambdas(pred_score, target)
+
+		gradients = [self._get_lambda_scaled_derivative(tape, pred_score, Wk, lambdas) \
+					 for Wk in self.trainable_variables]
+
 		if self.grad_clip:
 			gradients = [(tf.clip_by_value(grad, -self.clip_value, self.clip_value))
 						 for grad in gradients]
+
 		self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+		step = self.optimizer.iterations
 
-	step = self.optimizer.iterations
+		return step, tf.reduce_sum(loss), tf.squeeze(pred_score)
 
-	return step, loss, tf.squeeze(pred_score)
+	@tf.function(input_signature=train_step_signature)
+	def train_step(self, inputs, target):
+		return self._train_step(inputs, target)
 
+	@tf.function(input_signature=train_step_signature)
+	def factorized_train_step(self, inputs, target):
+		return self._factorized_train_step(inputs, target)
 
-def _factorized_train_step(self, inputs, target):
-	with tf.GradientTape(persistent=True) as tape:
-		pred_score = tf.squeeze(self(inputs, training=tf.constant(True)))
+	def _test_step(self, inputs, target):
+		pred_score = self(inputs, target, training=tf.constant(False))
 		loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
-		lambdas = self._get_lambdas(pred_score, target)
+		return loss
 
-	gradients = [self._get_lambda_scaled_derivative(tape, pred_score, Wk, lambdas) \
-				 for Wk in self.trainable_variables]
+	@tf.function(input_signature=train_step_signature)
+	def test_step(self, inputs, target):
+		return self._test_step(inputs, target)
 
-	if self.grad_clip:
-		gradients = [(tf.clip_by_value(grad, -self.clip_value, self.clip_value))
-					 for grad in gradients]
+	@staticmethod
+	def load_model(model, model_path):
+		ckpt = tf.train.Checkpoint(model=model)
+		ckpt_manager = tf.train.CheckpointManager(ckpt, model_path, max_to_keep=1)
+		ckpt.restore(ckpt_manager.latest_checkpoint)
+		print("Gpt2 Weights loaded..........................")
 
-	self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-	step = self.optimizer.iterations
+	def _save_model(self, test_loss):
+		if test_loss < self.val_loss:
+			ckpt_save_path = self.ckpt_manager.save()
+			self.val_loss = test_loss
+			print('Saving checkpoint at {}'.format(ckpt_save_path))
 
-	return step, tf.reduce_sum(loss), tf.squeeze(pred_score)
+	def _init_comp_graph(self, step=0, name="gpt2_LTR"):
+		with self.train_writer.as_default():
+			tf.summary.trace_export(
+				name=name,
+				step=step,
+				profiler_outdir=self.log_dir)
 
+	def fit(self, dataset, graph_mode=False):
+		if graph_mode:
+			print("Running Model in graph mode......")
+			if self.ranknet_type == "norm":
+				self.train_fuc = self.factorized_train_step
+			else:
+				self.train_fuc = self.train_step
+		else:
+			print("Running Model in eager mode......")
+			if self.ranknet_type == "norm":
+				self.train_fuc = self._factorized_train_step
+			else:
+				self.train_fuc = self._train_step
 
-@tf.function(input_signature=train_step_signature)
-def train_step(self, inputs, target):
-	return self._train_step(inputs, target)
+		assert len(dataset) == 2
+		train_dataset, test_dataset = dataset
+		tf.summary.trace_on(graph=True, profiler=True)
+		for (count, (q_id, inputs, target)) in enumerate(train_dataset):
+			step, train_loss, score = self.train_fuc(inputs, target)
+			print(train_loss)
 
+			"""
+			if step % 1000 == 0:
+				#$ndcg5, ndcg20 = self._get_ndcg(target, p_score)
+				self._log_model_summary_data(self.train_writer,
+											 step,
+											 train_loss,
+											 ndcg5,
+											 ndcg20)"""
 
-@tf.function(input_signature=train_step_signature)
-def factorized_train_step(self, inputs, target):
-	return self._factorized_train_step(inputs, target)
+			if step == 1:
+				self._init_comp_graph()
 
+			if step % 10000 == 0:
+				losses = []
+				for (test_step, (q_id_t, query_t, doc_t, add_t, target_t)) in enumerate(test_dataset):
+					test_loss = self.test_step(query_t, doc_t, add_t, target_t)
+					losses.append(test_loss)
+					if test_step == 100:
+						break
+				test_loss = np.mean(np.array(losses))
+				self._log_model_summary_data(self.test_writer,
+											 step,
+											 test_loss,
+											 log_freq=tf.constant(1.0))
 
-def _test_step(self, inputs, target):
-	pred_score = self(inputs, target, training=tf.constant(False))
-	loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
-	return loss
-
-
-@tf.function(input_signature=train_step_signature)
-def test_step(self, inputs, target):
-	return self._test_step(inputs, target)
-
-
-@staticmethod
-def load_model(model, model_path):
-	ckpt = tf.train.Checkpoint(model=model)
-	ckpt_manager = tf.train.CheckpointManager(ckpt, model_path, max_to_keep=1)
-	ckpt.restore(ckpt_manager.latest_checkpoint)
-	print("Gpt2 Weights loaded..........................")
-
-
-def _save_model(self, test_loss):
-	if test_loss < self.val_loss:
-		ckpt_save_path = self.ckpt_manager.save()
-		self.val_loss = test_loss
-		print('Saving checkpoint at {}'.format(ckpt_save_path))
-
-
-def _init_comp_graph(self, step=0, name="gpt2_LTR"):
-	with self.train_writer.as_default():
-		tf.summary.trace_export(
-			name=name,
-			step=step,
-			profiler_outdir=self.log_dir)
-
-
-def fit_eagerly(self, dataset):
-	assert len(dataset) == 2
-	train_dataset, test_dataset = dataset
-	print("Running in eager mode...........................")
-	for (count, (q_id, query, doc, add, target)) in enumerate(train_dataset):
-
-		step, train_loss = self.train_step_eagerly(query, doc, add, target)
-		self._log_model_data("Train", step, train_loss)
-
-		if count % 10000 == 0:
-			losses = []
-			for (test_step, (q_id_t, query_t, doc_t, add_t, target_t)) in enumerate(test_dataset):
-				test_loss = self.test_step_eagerly(query_t, doc_t, add_t, target_t)
-				losses.append(test_loss)
-
-				if test_step == 100:
-					break
-
-			test_loss = np.mean(np.array(losses))
-			self._log_model_summary_data(self.test_writer,
-										 step,
-										 test_loss,
-										 log_freq=tf.constant(1.0))
-			self._save_model(test_loss)
-
-
-def fit(self, dataset):
-	assert len(dataset) == 2
-	train_dataset, test_dataset = dataset
-	tf.summary.trace_on(graph=True, profiler=True)
-	for (count, (q_id, query, doc, add, target)) in enumerate(train_dataset):
-		step, train_loss = self.train_step(q_id, query, doc, add, target)
-		if step == 1:
-			self._init_comp_graph()
-
-		if step % 10000 == 0:
-			losses = []
-			for (test_step, (q_id_t, query_t, doc_t, add_t, target_t)) in enumerate(test_dataset):
-				test_loss = self.test_step(query_t, doc_t, add_t, target_t)
-				losses.append(test_loss)
-				if test_step == 100:
-					break
-			test_loss = np.mean(np.array(losses))
-			self._log_model_summary_data(self.test_writer,
-										 step,
-										 test_loss,
-										 log_freq=tf.constant(1.0))
-
-			self._save_model(test_loss)
+				self._save_model(test_loss)
