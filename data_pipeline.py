@@ -33,8 +33,8 @@ def make_dataset(tf_files, no_threads):
 
 
 def pairwise_batch_iterator(tf_records,
-							no_threads=12,
 							batch_size=64,
+							no_threads=12,
 							num_epochs=50):
 	dataset = make_dataset(tf_records, no_threads)
 
