@@ -1,14 +1,10 @@
-from typing import Optional, Any
-
-from utils import gelu
-import tensorflow as tf
-
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import LayerNormalization
 
 train_step_signature = [
-	tf.TensorSpec(shape=(None, 1536), dtype=tf.float32),
-	tf.TensorSpec(shape=(None, 768), dtype=tf.float32),
-	tf.TensorSpec(shape=(None, 19), dtype=tf.float32),
+	tf.TensorSpec(shape=(None, 136), dtype=tf.float32),
 	tf.TensorSpec(shape=(None, 1), dtype=tf.float32),
 ]
 
@@ -17,18 +13,19 @@ class BaseTFModel(tf.keras.Model):
 	def __init__(self):
 		super(BaseTFModel, self).__init__()
 		self.optimizer = None
-		self.ckpt_manager = None
 		self.train_writer = None
 		self.test_writer = None
+		self.ckpt_manager = None
+		self.mirrored_strategy = None
 		self.val_loss = 1000.0
 
-	def creat_optimizer(self, optimizer_type):
+	def create_optimizer(self, optimizer_type):
 		with tf.name_scope("optimizer"):
 			if optimizer_type == "adam":
 				self.optimizer = tf.keras.optimizers.Adam(self.learning_rate,
-														  beta_1=0.9,
-														  beta_2=0.999,
-														  epsilon=1e-9)
+														beta_1=0.9,
+														beta_2=0.999,
+														epsilon=1e-9)
 			elif optimizer_type == "adadelta":
 				self.optimizer = tf.keras.optimizers.Adadelta(self.learning_rate)
 			elif optimizer_type == "rms":
@@ -41,8 +38,8 @@ class BaseTFModel(tf.keras.Model):
 		with tf.name_scope('checkpoint_manager'):
 			ckpt = tf.train.Checkpoint(optimizer=self.optimizer, model=self)
 			self.ckpt_manager = tf.train.CheckpointManager(ckpt,
-														   checkpoint_path,
-														   max_to_keep=max_to_keep)
+														checkpoint_path,
+														max_to_keep=max_to_keep)
 
 			if load_model:  # If want to load trained weights
 				ckpt.restore(self.ckpt_manager.latest_checkpoint)
@@ -80,73 +77,63 @@ class BaseTFModel(tf.keras.Model):
 
 
 class LTRModelRanknet(BaseTFModel):
-	def __init__(self, qu_fc_dim=1024,
-				 doc_fc_dim=1024,
-				 dr_rate=0.25,
-				 activation=gelu,
-				 learning_rate=1e-3,
-				 grad_clip=True,
-				 clip_value=0.50):
+	def __init__(self,
+				activation=tf.nn.relu,
+				learning_rate=1e-3,
+				dr_rate=0.25,
+				grad_clip=True,
+				clip_value=0.50):
 		super(LTRModelRanknet, self).__init__()
 
 		self.learning_rate = learning_rate
-		self.qu_fc_dim = qu_fc_dim
-		self.doc_fc_dim = doc_fc_dim
 		self.activation = activation
 		self.dr_rate = dr_rate
 		self.grad_clip = grad_clip
 		self.clip_value = clip_value
 
 		self.ln1 = LayerNormalization(1536)
-		self.query_dense = DenseLayer(self.qu_fc_dim,
-									  activation=self.activation)
-		self.query_drop_layer = tf.keras.layers.Dropout(0.05)
+		self.dense = Dense(self.qu_fc_dim,
+						activation=self.activation)
+		self.dense1 = Dense(768,
+							activation=self.activation)
 
-		self.ln2 = LayerNormalization(768)
-		self.doc_dense = DenseLayer(self.doc_fc_dim,
-									activation=self.activation)
-		self.doc_drop_layer = tf.keras.layers.Dropout(0.05)
-
-		self.ln3 = LayerNormalization(1043)
-		self.dense1 = DenseLayer(768,
-								 activation=self.activation)
-
-		self.ln4 = LayerNormalization(768)
-		self.dense2 = DenseLayer(512,
-								 activation=self.activation)
-
-		self.ln5 = LayerNormalization(512)
-		self.dense3 = DenseLayer(256,
-								 activation=self.activation)
+		self.ln2 = LayerNormalization(512)
+		self.dense2 = Dense(256,
+							activation=self.activation)
 
 		self.fc_drop = tf.keras.layers.Dropout(self.dr_rate)
-		self.ln6 = LayerNormalization(256)
-		self.output_layer = DenseLayer(1, activation=tf.identity, use_bias=False)
+		self.ln3 = LayerNormalization(256)
+		self.output_layer = Dense(1, activation=tf.identity, use_bias=False)
 
-	def call(self, query, doc, add, training):
-		query = tf.cast(query, tf.float32)
-		doc = tf.cast(doc, tf.float32)
-		add = tf.cast(add, tf.float32)
+	def call(self, inputs, training=False):
+		inputs = tf.cast(inputs, tf.float32)
 
-		query = self.query_drop_layer(self.ln1(query), training=training)
-		query_vec = self.query_dense(query)
+		output = self.dense(self.ln1(inputs))
+		output = self.dense(self.ln3(output))
 
-		doc = self.doc_drop_layer(self.ln2(doc), training=training)
-		doc_vec = self.doc_dense(doc)
-
-		with tf.name_scope("HadmardProduct"):
-			final_inp = tf.multiply(query_vec, doc_vec)
-
-		with tf.name_scope("AddFeatureCocat"):
-			final_inp = tf.concat([final_inp, add], 1)
-
-		output = self.dense1(self.ln3(final_inp))
-		output = self.dense2(self.ln4(output))
-		output = self.dense3(self.ln5(output))
-
-		output = self.fc_drop(self.ln6(output), training=training)
+		output = self.fc_drop(self.ln3(output), training=training)
 		score = tf.squeeze(self.output_layer(output))
 		return score
+
+	def _matching_function(self, x1, x2, training):
+		score1 = self(x1, training)
+		score2 = self(x2, training)
+
+		return score1, score2
+
+	@staticmethod
+	def _get_lambda_scaled_derivative(grad_tape, score, Wk, lambdas):
+		dsi_dWk = grad_tape.jacobian(score, Wk)
+
+		dsi_dWk_minus_dsj_dWk = tf.expand_dims(dsi_dWk, 1) - tf.expand_dims(dsi_dWk, 0)
+
+		shape = tf.concat([tf.shape(lambdas),
+						tf.ones([tf.rank(dsi_dWk_minus_dsj_dWk) - tf.rank(lambdas)],
+						dtype=tf.int32)], axis=0)
+
+		grad = tf.reshape(lambdas, shape) * dsi_dWk_minus_dsj_dWk
+		grad = tf.reduce_mean(grad, axis=[0, 1])
+		return grad
 
 	@staticmethod
 	def get_factorized_ranknet_loss(pred_score, real_score):
@@ -159,7 +146,7 @@ class LTRModelRanknet(BaseTFModel):
 			pred_label = tf.nn.sigmoid(pred_diff_matrix)
 
 			loss = -real_label * tf.math.log(pred_label) - \
-				   (1 - real_label) * tf.math.log(1 - pred_label)
+				(1 - real_label) * tf.math.log(1 - pred_label)
 
 		return loss
 
@@ -172,13 +159,13 @@ class LTRModelRanknet(BaseTFModel):
 			gradients = tape.gradient(loss, self.trainable_variables)
 			if self.grad_clip:
 				gradients = [(tf.clip_by_value(grad, -self.clip_value, self.clip_value))
-							 for grad in gradients]
+							for grad in gradients]
 			self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
 		step = self.optimizer.iterations
 		self._log_model_summary_data(self.train_writer,
-									 step,
-									 loss)
+									step,
+									loss)
 		return step, loss
 
 	@tf.function(input_signature=train_step_signature)
@@ -186,7 +173,7 @@ class LTRModelRanknet(BaseTFModel):
 		return self._train_step(query, doc, add, target)
 
 	def _test_step(self, query, doc, add, target):
-		pred_score: Optional[Any] = self(query, doc, add, target, training=tf.constant(False))
+		pred_score = self(query, doc, add, target, training=tf.constant(False))
 		loss = tf.reduce_mean(self.get_factorized_ranknet_loss(pred_score, target))
 		return loss
 
@@ -224,7 +211,6 @@ class LTRModelRanknet(BaseTFModel):
 			self._log_model_data("Train", step, train_loss)
 
 			if count % 10000 == 0:
-				gc.collect()
 				losses = []
 				for (test_step, (q_id_t, query_t, doc_t, add_t, target_t)) in enumerate(test_dataset):
 					test_loss = self.test_step_eagerly(query_t, doc_t, add_t, target_t)
@@ -235,9 +221,9 @@ class LTRModelRanknet(BaseTFModel):
 
 				test_loss = np.mean(np.array(losses))
 				self._log_model_summary_data(self.test_writer,
-											 step,
-											 test_loss,
-											 log_freq=tf.constant(1.0))
+											step,
+											test_loss,
+											log_freq=tf.constant(1.0))
 				self._save_model(test_loss)
 
 	def fit(self, dataset):
@@ -258,22 +244,8 @@ class LTRModelRanknet(BaseTFModel):
 						break
 				test_loss = np.mean(np.array(losses))
 				self._log_model_summary_data(self.test_writer,
-											 step,
-											 test_loss,
-											 log_freq=tf.constant(1.0))
+											step,
+											test_loss,
+											log_freq=tf.constant(1.0))
 
 				self._save_model(test_loss)
-
-
-class LearningSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-	def __init__(self, d_model, warmup_steps=2000, avg_constant=0.01):
-		super(LearningSchedule, self).__init__()
-		self.d_model = tf.cast(d_model, tf.float32)
-		self.warmup_steps = warmup_steps
-		self.avg_constant = tf.cast(avg_constant, tf.float32)
-
-	def __call__(self, step):
-		arg1 = tf.math.rsqrt(step)
-		arg2 = step * (self.warmup_steps ** -1.5)
-
-		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2) * self.avg_constant
