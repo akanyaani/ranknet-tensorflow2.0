@@ -62,7 +62,9 @@ class BaseTFModel(tf.keras.Model):
 
 	@staticmethod
 	def _get_ndcg(target, pred_score):
-		zpd = list(zip(tf.squeeze(target).numpy(), pred_score.numpy()))
+
+		target = tf.reshape(target, [-1])
+		zpd = list(zip(target.numpy(), pred_score.numpy()))
 		zpd.sort(key=lambda x: x[1], reverse=True)
 		pred_rank, _ = list(zip(*zpd))
 
@@ -148,19 +150,25 @@ class LTRModelRanknet(BaseTFModel):
 		https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf
 		∂si/∂wk−∂sj/∂wk In this method calculating this as explained in paper."""
 
-		#import pdb;
-		#pdb.set_trace()
+		# import pdb;
+		# pdb.set_trace()
+		# print("\nShape of Wk :- ", tf.shape(Wk))
+		# print("\nShape of score :- ", tf.shape(score))
 
-		dsi_dWk = tape.jacobian(score, Wk)  # ∂si/∂wk
+		# print("\nShape of lambdas :- ", tf.shape(lambdas))
+		dsi_dWk = tape.jacobian(score, Wk, experimental_use_pfor=False)  # ∂si/∂wk
 		dsi_dWk_minus_dsj_dWk = tf.expand_dims(dsi_dWk, 1) - tf.expand_dims(dsi_dWk, 0)  # ∂si/∂wk−∂sj/∂wk
-
+		# print("\nShape of dsi_dWk :- ", tf.shape(dsi_dWk))
+		# print("\nShape of dsi_dWk_minus_dsj_dWk :- ", tf.shape(dsi_dWk_minus_dsj_dWk))
 		shape = tf.concat([tf.shape(lambdas),
 						   tf.ones([tf.rank(dsi_dWk_minus_dsj_dWk) - tf.rank(lambdas)],
 								   dtype=tf.int32)], axis=0)
 
 		# (1/2(1−Sij)−1/1+eσ(si−sj))(∂si/∂wk−∂sj/∂wk)
+		# print("\nShape :- ", shape)
 		grad = tf.reshape(lambdas, shape) * dsi_dWk_minus_dsj_dWk
 		grad = tf.reduce_mean(grad, axis=[0, 1])
+		# print("\nShape of grad :- ", tf.shape(grad))
 		return grad
 
 	@staticmethod
@@ -218,9 +226,8 @@ class LTRModelRanknet(BaseTFModel):
 			pred_score = self(inputs, training=tf.constant(True))
 			loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
 			lambdas = self._get_lambdas(pred_score, target)
-			pred_score = tf.squeeze(pred_score)
+			pred_score = tf.reshape(pred_score, [-1])
 
-		# print(pred_score)
 		gradients = [self._get_lambda_scaled_derivative(tape, pred_score, Wk, lambdas) \
 					 for Wk in self.trainable_variables]
 
@@ -293,7 +300,7 @@ class LTRModelRanknet(BaseTFModel):
 		for (count, (q_id, inputs, target)) in enumerate(train_dataset):
 			step, train_loss, score = self.train_fuc(inputs, target)
 
-			if step % 100 == 0:
+			if step % 1 == 0:
 				ndcg5, ndcg20 = self._get_ndcg(target, score)
 				self._log_model_summary_data(self.train_writer,
 											 step,

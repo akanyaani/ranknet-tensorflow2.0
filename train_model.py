@@ -15,7 +15,7 @@ from ranknet import LTRModelRanknet
 			  help="tf records path")
 @click.option('--exp-name', type=str, default="ltr", show_default=True, help="exp name")
 @click.option('--optimizer', type=str, default="adam", show_default=True, help="optimizer type")
-@click.option('--batch-size', type=int, default=2, show_default=True, help="optimizer type")
+@click.option('--batch-size', type=int, default=32, show_default=True, help="optimizer type")
 @click.option('--learning-rate', type=float, default=5e-4, show_default=True, help="learning rate")
 @click.option('--graph-mode', type=bool, default=False, show_default=True, help="graph execution")
 def train(data_path, out_dir, exp_name, optimizer, batch_size, learning_rate, graph_mode):

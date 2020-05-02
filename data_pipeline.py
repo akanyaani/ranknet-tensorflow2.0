@@ -33,6 +33,7 @@ def make_dataset(tf_files, no_threads):
 
 
 def pairwise_batch_iterator(tf_records,
+							window_size=1024,
 							batch_size=64,
 							no_threads=12,
 							num_epochs=50):
@@ -41,8 +42,9 @@ def pairwise_batch_iterator(tf_records,
 	dataset = dataset.apply(tf.data.experimental.group_by_window(
 		key_func=lambda elem, *args: elem,
 		reduce_func=lambda _, window: window.batch(batch_size),
-		window_size=5000))
+		window_size=window_size))
 
+	# dataset = dataset.filter(lambda x, *args: tf.shape(x)[0] >= 2)
 	dataset = dataset.repeat(num_epochs)
 	dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
