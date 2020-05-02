@@ -75,7 +75,8 @@ $ tensorboard --logdir /log
 
 * ["Microsoft Learning to Rank Datasets"](https://www.microsoft.com/en-us/research/project/mslr/)
 * ["From RankNet to LambdaRank"](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf)
-* ["Tensorflow Transformers"](https://www.tensorflow.org/beta/tutorials/text/transformer)
+* ["Tensorflow-LTR"](https://github.com/ChenglongChen/tensorflow-LTR)
+
 
 
 **Contribution**
