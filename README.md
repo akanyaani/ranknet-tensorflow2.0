@@ -32,7 +32,7 @@ Options:
   
 ```
 
-Preprocessing and and creating the TF Records on MSLR Data
+Preprocessing and and creating the TF Records of MSLR Data
 
 ```
 >> python pre_process.py --data-dir data/path
