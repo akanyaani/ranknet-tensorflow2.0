@@ -15,10 +15,11 @@ from ranknet import LTRModelRanknet
 			  help="tf records path")
 @click.option('--exp-name', type=str, default="ltr", show_default=True, help="exp name")
 @click.option('--optimizer', type=str, default="adam", show_default=True, help="optimizer type")
-@click.option('--batch-size', type=int, default=32, show_default=True, help="optimizer type")
+@click.option('--window-size', type=int, default=512, show_default=True, help="optimizer type")
+@click.option('--batch-size', type=int, default=8, show_default=True, help="optimizer type")
 @click.option('--learning-rate', type=float, default=5e-4, show_default=True, help="learning rate")
-@click.option('--graph-mode', type=bool, default=False, show_default=True, help="graph execution")
-def train(data_path, out_dir, exp_name, optimizer, batch_size, learning_rate, graph_mode):
+@click.option('--graph-mode', type=bool, default=True, show_default=True, help="graph execution")
+def train(data_path, out_dir, exp_name, optimizer, window_size, batch_size, learning_rate, graph_mode):
 	MODEL_DIR = out_dir + "/models/" + exp_name
 	LOG_DIR = MODEL_DIR + "/log/"
 
@@ -31,8 +32,8 @@ def train(data_path, out_dir, exp_name, optimizer, batch_size, learning_rate, gr
 	train_tf_records = data_path + "/train"
 	test_tf_records = data_path + "/test"
 
-	train_dataset = pairwise_batch_iterator(train_tf_records, batch_size, no_threads=8)
-	test_dataset = pairwise_batch_iterator(test_tf_records, batch_size, no_threads=2)
+	train_dataset = pairwise_batch_iterator(train_tf_records, window_size, batch_size, no_threads=8)
+	test_dataset = pairwise_batch_iterator(test_tf_records, window_size, batch_size, no_threads=2)
 
 	model = LTRModelRanknet(learning_rate=learning_rate)
 	model.ranknet_type = "factor"

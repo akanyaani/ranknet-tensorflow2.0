@@ -156,7 +156,8 @@ class LTRModelRanknet(BaseTFModel):
 		# print("\nShape of score :- ", tf.shape(score))
 
 		# print("\nShape of lambdas :- ", tf.shape(lambdas))
-		dsi_dWk = tape.jacobian(score, Wk, experimental_use_pfor=False)  # ∂si/∂wk
+		dsi_dWk = tape.jacobian(score, Wk)  # ∂si/∂wk
+		# dsi_dWk = tape.jacobian(score, Wk, experimental_use_pfor=False)  # ∂si/∂wk
 		dsi_dWk_minus_dsj_dWk = tf.expand_dims(dsi_dWk, 1) - tf.expand_dims(dsi_dWk, 0)  # ∂si/∂wk−∂sj/∂wk
 		# print("\nShape of dsi_dWk :- ", tf.shape(dsi_dWk))
 		# print("\nShape of dsi_dWk_minus_dsj_dWk :- ", tf.shape(dsi_dWk_minus_dsj_dWk))
@@ -191,14 +192,14 @@ class LTRModelRanknet(BaseTFModel):
 		"""https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf
 		As explained in equation 3
 		(1/2(1−Sij)−1/1+eσ(si−sj))"""
-
-		diff_matrix = labels - tf.transpose(labels)
-		label_diff_matrix = tf.maximum(tf.minimum(1., diff_matrix), -1.)
-		# print(label_diff_matrix)
-		pred_diff_matrix = pred_score - tf.transpose(pred_score)
-		# print(pred_diff_matrix)
-		lambdas = self.sigma * ((1 / 2) * (1 - label_diff_matrix) - \
-								tf.nn.sigmoid(-self.sigma * pred_diff_matrix))
+		with tf.name_scope("lambdas"):
+			diff_matrix = labels - tf.transpose(labels)
+			label_diff_matrix = tf.maximum(tf.minimum(1., diff_matrix), -1.)
+			# print(label_diff_matrix)
+			pred_diff_matrix = pred_score - tf.transpose(pred_score)
+			# print(pred_diff_matrix)
+			lambdas = self.sigma * ((1 / 2) * (1 - label_diff_matrix) - \
+									tf.nn.sigmoid(-self.sigma * pred_diff_matrix))
 
 		return lambdas
 
@@ -228,15 +229,14 @@ class LTRModelRanknet(BaseTFModel):
 			lambdas = self._get_lambdas(pred_score, target)
 			pred_score = tf.reshape(pred_score, [-1])
 
-		gradients = [self._get_lambda_scaled_derivative(tape, pred_score, Wk, lambdas) \
-					 for Wk in self.trainable_variables]
-
-		if self.grad_clip:
-			gradients = [(tf.clip_by_value(grad, -self.clip_value, self.clip_value))
-						 for grad in gradients]
-
-		self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-		step = self.optimizer.iterations
+		with tf.name_scope("gradients"):
+			gradients = [self._get_lambda_scaled_derivative(tape, pred_score, Wk, lambdas) \
+						 for Wk in self.trainable_variables]
+			if self.grad_clip:
+				gradients = [(tf.clip_by_value(grad, -self.clip_value, self.clip_value))
+							 for grad in gradients]
+			self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+			step = self.optimizer.iterations
 
 		return step, loss, pred_score
 
@@ -277,21 +277,24 @@ class LTRModelRanknet(BaseTFModel):
 				step=step,
 				profiler_outdir=self.log_dir)
 
-	def fit(self, dataset, graph_mode=False):
+	def set_train_test_function(self, graph_mode):
 		if graph_mode:
-			print("Running Model in graph mode......")
+			print("Running Model in graph mode.............")
 			self.test_fuc = self.test_step
 			if self.ranknet_type == "norm":
 				self.train_fuc = self.train_step
 			else:
 				self.train_fuc = self.factorized_train_step
 		else:
-			print("Running Model in eager mode......")
+			print("Running Model in eager mode.............")
 			self.test_fuc = self._test_step
 			if self.ranknet_type == "norm":
 				self.train_fuc = self._train_step
 			else:
 				self.train_fuc = self._factorized_train_step
+
+	def fit(self, dataset, graph_mode=False):
+		self.set_train_test_function(graph_mode)
 
 		assert len(dataset) == 2
 		train_dataset, test_dataset = dataset
@@ -300,7 +303,7 @@ class LTRModelRanknet(BaseTFModel):
 		for (count, (q_id, inputs, target)) in enumerate(train_dataset):
 			step, train_loss, score = self.train_fuc(inputs, target)
 
-			if step % 1 == 0:
+			if step % 1000 == 0:
 				ndcg5, ndcg20 = self._get_ndcg(target, score)
 				self._log_model_summary_data(self.train_writer,
 											 step,
@@ -312,7 +315,7 @@ class LTRModelRanknet(BaseTFModel):
 				if graph_mode:
 					self._init_comp_graph()
 
-			if step % 1000 == 0:
+			if step % 5000 == 0:
 				losses = []
 				ndcg_5 = []
 				ndcg_20 = []
