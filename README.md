@@ -17,7 +17,8 @@ $ git clone https://github.com/akanyaani/ranknet-tensorflow2.0
 $ cd ranknet-tensorflow2.0
 $ pip install -r requirements.txt
 ```
-Download data from here https://www.microsoft.com/en-us/research/project/mslr/
+Download data from here https://www.microsoft.com/en-us/research/project/mslr/ and pass any of the fold to pre_process.
+
 ```
 $ python pre_process.py --help
 
