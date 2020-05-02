@@ -1,6 +1,6 @@
 # Implementation of Ranknet to LambdaRank in Tensorflow2.0
 
-**This repository has OpenAi GPT-2 pre-training and sequence generation implementation in tensorflow 2.0, **
+**This repository has From RankNet to LambdaRank implementation in tensorflow 2.0, **
 
 
 **Requirements**
