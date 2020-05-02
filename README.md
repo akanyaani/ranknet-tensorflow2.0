@@ -64,7 +64,7 @@ $ python train_model.py --data-path /data/path \
 
 Start TensorBoard through the command line.
 ```
-$ tensorboard --logdir /log
+$ tensorboard --logdir /model/data/path
 ```
 
 **References:**
