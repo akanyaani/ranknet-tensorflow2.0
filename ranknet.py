@@ -62,8 +62,10 @@ class BaseTFModel(tf.keras.Model):
 
 	@staticmethod
 	def _get_ndcg(target, pred_score):
-
+		# print(tf.shape(pred_score))
 		target = tf.reshape(target, [-1])
+
+		# print(tf.shape(target))
 		zpd = list(zip(target.numpy(), pred_score.numpy()))
 		zpd.sort(key=lambda x: x[1], reverse=True)
 		pred_rank, _ = list(zip(*zpd))
@@ -251,18 +253,11 @@ class LTRModelRanknet(BaseTFModel):
 	def _test_step(self, inputs, target):
 		pred_score = self(inputs, training=tf.constant(False))
 		loss = tf.reduce_mean(self._get_ranknet_loss(pred_score, target))
-		return loss, tf.squeeze(pred_score)
+		return loss, tf.reshape(pred_score, [-1])
 
 	@tf.function(input_signature=train_step_signature)
 	def test_step(self, inputs, target):
 		return self._test_step(inputs, target)
-
-	@staticmethod
-	def load_model(model, model_path):
-		ckpt = tf.train.Checkpoint(model=model)
-		ckpt_manager = tf.train.CheckpointManager(ckpt, model_path, max_to_keep=1)
-		ckpt.restore(ckpt_manager.latest_checkpoint)
-		print("Gpt2 Weights loaded..........................")
 
 	def _save_model(self, ndcg):
 		if ndcg > self.ndcg:
@@ -303,7 +298,8 @@ class LTRModelRanknet(BaseTFModel):
 		for (count, (q_id, inputs, target)) in enumerate(train_dataset):
 			step, train_loss, score = self.train_fuc(inputs, target)
 
-			if step % 1000 == 0:
+			if step % 100 == 0:
+				# print("\nTrain Score :- ", score)
 				ndcg5, ndcg20 = self._get_ndcg(target, score)
 				self._log_model_summary_data(self.train_writer,
 											 step,
@@ -315,14 +311,15 @@ class LTRModelRanknet(BaseTFModel):
 				if graph_mode:
 					self._init_comp_graph()
 
-			if step % 5000 == 0:
+			if step % 500 == 0:
 				losses = []
 				ndcg_5 = []
 				ndcg_20 = []
 
 				for (test_step, (qid, inputs_test, target_test)) in enumerate(test_dataset):
 					test_loss, pred_score = self.test_fuc(inputs_test, target_test)
-
+					# print("\nPred Score :- ", pred_score)
+					# print("\nTarget Test :- ", target_test)
 					ndcg5, ndcg20 = self._get_ndcg(target_test, pred_score)
 					losses.append(test_loss)
 					ndcg_5.append(ndcg5)

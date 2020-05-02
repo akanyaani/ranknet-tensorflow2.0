@@ -3,7 +3,7 @@ import os
 import click
 
 from data_pipeline import *
-from ranknet import LTRModelRanknet
+from lambdarank import LTRModelLambdaRank
 
 
 @click.command()
@@ -16,8 +16,8 @@ from ranknet import LTRModelRanknet
 @click.option('--exp-name', type=str, default="ltr", show_default=True, help="exp name")
 @click.option('--optimizer', type=str, default="adam", show_default=True, help="optimizer type")
 @click.option('--window-size', type=int, default=512, show_default=True, help="optimizer type")
-@click.option('--batch-size', type=int, default=8, show_default=True, help="optimizer type")
-@click.option('--learning-rate', type=float, default=5e-4, show_default=True, help="learning rate")
+@click.option('--batch-size', type=int, default=128, show_default=True, help="optimizer type")
+@click.option('--learning-rate', type=float, default=1e-4, show_default=True, help="learning rate")
 @click.option('--graph-mode', type=bool, default=True, show_default=True, help="graph execution")
 def train(data_path, out_dir, exp_name, optimizer, window_size, batch_size, learning_rate, graph_mode):
 	MODEL_DIR = out_dir + "/models/" + exp_name
@@ -35,8 +35,8 @@ def train(data_path, out_dir, exp_name, optimizer, window_size, batch_size, lear
 	train_dataset = pairwise_batch_iterator(train_tf_records, window_size, batch_size, no_threads=8)
 	test_dataset = pairwise_batch_iterator(test_tf_records, window_size, batch_size, no_threads=2)
 
-	model = LTRModelRanknet(learning_rate=learning_rate)
-	model.ranknet_type = "factor"
+	model = LTRModelLambdaRank(learning_rate=learning_rate)
+	# model.ranknet_type = "factor"
 	model.create_optimizer(optimizer_type=optimizer)
 	model.create_checkpoint_manager(MODEL_DIR)
 	model.create_summary_writer(LOG_DIR)
