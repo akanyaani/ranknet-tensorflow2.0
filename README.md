@@ -30,13 +30,12 @@ Options:
   --per-file-limit INTEGER  no of example per tfrecords  [default: 50000]
   --help                    Show this message and exit.
   
+```
+
+Preprocessing and and creating the TF Records on MSLR Data
+
+```
 >> python pre_process.py --data-dir data/path
-```
-
-Pre-Training model on openwebtext or any other data
-
-```
->> python pre_process.py --data-dir=data_directory --vocab-size=32000
 ```
 
 
