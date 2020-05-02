@@ -81,9 +81,8 @@ $ sequence_generator.ipynb
 **References:**
 
 * ["Microsoft Learning to Rank Datasets"](https://www.microsoft.com/en-us/research/project/mslr/)
-* ["Huggingface pytorch-transformers"](https://github.com/huggingface/pytorch-transformers)
+* ["From RankNet to LambdaRank"](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf)
 * ["Tensorflow Transformers"](https://www.tensorflow.org/beta/tutorials/text/transformer)
-* ["The Illustrated GPT-2 "](https://jalammar.github.io/illustrated-gpt2/)
 
 
 **Contribution**
@@ -99,16 +98,3 @@ $ sequence_generator.ipynb
 **License**
 
 * [MIT](https://github.com/akanyaani/gpt-2-tensorflow2.0/blob/master/LICENSE)
-
-
-<p align="center">
-Computation Graph of GPT-2 Model.
-</p>
-
-<div align="center">
-<img src="https://raw.githubusercontent.com/akanyaani/gpt-2-tensorflow2.0/master/images/GPT-2_Decoder.jpg" alt="Decoder Graph" height="750" width="700"/>
-<div>
-<br />          
-<div align="center">
-<img src="https://raw.githubusercontent.com/akanyaani/gpt-2-tensorflow2.0/master/images/GPT-2_Graph.jpg" alt="GPT-2_Graph" height="750" width="700"/>
-<div>
