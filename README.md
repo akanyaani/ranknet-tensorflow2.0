@@ -41,23 +41,29 @@ Preprocessing and and creating the TF Records of MSLR Data
 
 
 ```
-$ python train_gpt2.py --help
+$ python train_model.py --help
 
 Options:
-  --num-layers INTEGER      No. of decoder layers  [default: 8]
-  --embedding-size INTEGER  Embedding size  [default: 768]
-  --num-heads INTEGER       Number of heads  [default: 8]
-  --dff INTEGER             Filter Size  [default: 3072]
-  --max-seq-len INTEGER     Seq length  [default: 515]
-  --vocab-size INTEGER      Vocab size  [default: 32000]
-  --optimizer TEXT          optimizer type  [default: adam]
-  --batch-size INTEGER      batch size  [default: 8]
-  --learning-rate FLOAT     learning rate  [default: 0.001]
-  --distributed BOOLEAN     distributed training  [default: False]
-  --help                    Show this message and exit.
+  --data-path TEXT       out directory  [default: ./data/tf_records]
+  --out-dir TEXT         tf records path  [default:
+                         /media/akanyaani/Disk2/ranknet]
+  --algo TEXT            LTR algo name  [default: ranknet]
+  --ranknet-type TEXT    Ranknet type (default or factor)  [default: default]
+  --optimizer TEXT       optimizer type  [default: adam]
+  --window-size INTEGER  optimizer type  [default: 512]
+  --batch-size INTEGER   optimizer type  [default: 128]
+  --lr FLOAT             learning rate  [default: 0.0001]
+  --graph-mode BOOLEAN   graph execution  [default: True]
+  --help                 Show this message and exit.
+
   
   
->> python train_gpt2.py --num-layers=8 --embedding-size=768 --batch-size=32
+$ python train_model.py --data-path /data/path \
+                        --out-dir /model/data/path \
+                        --algo lambdarank \
+                        --batch-size=32 \
+                        --batch-size 128 --lr 1e-4 \
+                        --graph-mode True
 ```
 
 Distributed training on multiple gpu.
