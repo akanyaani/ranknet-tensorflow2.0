@@ -80,7 +80,7 @@ $ sequence_generator.ipynb
 
 **References:**
 
-* ["Openai/gpt-2"](https://github.com/openai/gpt-2)
+* ["Microsoft Learning to Rank Datasets"](https://www.microsoft.com/en-us/research/project/mslr/)
 * ["Huggingface pytorch-transformers"](https://github.com/huggingface/pytorch-transformers)
 * ["Tensorflow Transformers"](https://www.tensorflow.org/beta/tutorials/text/transformer)
 * ["The Illustrated GPT-2 "](https://jalammar.github.io/illustrated-gpt2/)
