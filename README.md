@@ -16,8 +16,8 @@
 **Setup**
 
 ```
-$ git clone https://github.com/akanyaani/gpt-2-tensorflow2.0
-$ cd gpt-2-tensorflow2.0
+$ git clone https://github.com/akanyaani/ranknet-tensorflow2.0
+$ cd ranknet-tensorflow2.0
 $ pip install -r requirements.txt
 ```
 
