@@ -18,7 +18,7 @@ $ cd ranknet-tensorflow2.0
 $ pip install -r requirements.txt
 ```
 
-Pre process and creation of TF Records.
+Pre process and creation of TFRecords.
 ```
 $ python pre_process.py --help
 
