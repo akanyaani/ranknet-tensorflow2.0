@@ -66,21 +66,9 @@ $ python train_model.py --data-path /data/path \
                         --graph-mode True
 ```
 
-Distributed training on multiple gpu.
-```
->> python train_gpt2.py --num-layers=8 --embedding-size=768 --batch-size=32 --distributed=Ture
-```
-
 Start TensorBoard through the command line.
 ```
 $ tensorboard --logdir /log
-```
-
-After pretraining your model, you can generate sequences by giving some context to model.
-Open this notebook and load the pretrained model and pass context to model it will return the generated sequence.
-
-```
-$ sequence_generator.ipynb
 ```
 
 **References:**
