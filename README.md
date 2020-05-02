@@ -21,19 +21,14 @@ $ cd ranknet-tensorflow2.0
 $ pip install -r requirements.txt
 ```
 
-You can pre-train the model using sample data available in repository or you can download the data using this github repo https://github.com/eukaryote31/openwebtext
-
 Pre-Training model on sample data available in repository
 ```
 $ python pre_process.py --help
 
 Options:
-  --data-dir TEXT        training data path  [default: /data/scraped]
-  --vocab-size INTEGER   byte pair vocab size  [default: 32000]
-  --min-seq-len INTEGER  minimum sequence length  [default: 15]
-  --max-seq-len INTEGER  maximum sequence length  [default: 512]
-  --help                 Show this message and exit.
-  
+  --data-dir TEXT           training data path  [default: /data/rank_data]
+  --per-file-limit INTEGER  no of example per tfrecords  [default: 50000]
+  --help                    Show this message and exit.
   
 >> python pre_process.py
 ```
