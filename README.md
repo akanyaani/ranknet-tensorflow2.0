@@ -17,8 +17,7 @@ $ git clone https://github.com/akanyaani/ranknet-tensorflow2.0
 $ cd ranknet-tensorflow2.0
 $ pip install -r requirements.txt
 ```
-
-Pre process and creation of TFRecords.
+* pre_process help
 ```
 $ python pre_process.py --help
 
@@ -35,7 +34,7 @@ Preprocessing and and creating the TF Records of MSLR Data
 >> python pre_process.py --data-dir data/path
 ```
 
-
+Training learning to rank model.
 
 ```
 $ python train_model.py --help
