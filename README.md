@@ -18,7 +18,7 @@ $ cd ranknet-tensorflow2.0
 $ pip install -r requirements.txt
 ```
 
-Pre-Training model on sample data available in repository
+Pre process and creation of TF Records.
 ```
 $ python pre_process.py --help
 
