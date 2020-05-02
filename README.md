@@ -1,7 +1,4 @@
-# Implemetation of Ranknet to LambdaRank in tensorflow2.0
-
-Originally implemented in tensorflow 1.14 by OapenAi :- ["openai/gpt-2"](https://github.com/openai/gpt-2). OpenAi GPT-2 Paper:-["Language Models are Unsupervised Multitask Learners"](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
-
+# Implementation of Ranknet to LambdaRank in Tensorflow2.0
 
 **This repository has OpenAi GPT-2 pre-training and sequence generation implementation in tensorflow 2.0, **
 
@@ -13,7 +10,6 @@ Originally implemented in tensorflow 1.14 by OapenAi :- ["openai/gpt-2"](https:/
 *  ftfy==5.6
 *  tqdm==4.32.1
 *  Click==7.0
-*  sentencepiece==0.1.83
 *  tensorflow-gpu==2.0.0
 *  numpy==1.16.4
 
