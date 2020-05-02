@@ -3,6 +3,7 @@ import os
 import click
 
 from data_pipeline import *
+from ranknet import LTRModelRanknet
 from lambdarank import LTRModelLambdaRank
 
 
@@ -13,14 +14,15 @@ from lambdarank import LTRModelLambdaRank
 @click.option('--out-dir', type=str, default="/media/akanyaani/Disk2/ranknet",
 			  show_default=True,
 			  help="tf records path")
-@click.option('--exp-name', type=str, default="ltr", show_default=True, help="exp name")
+@click.option('--algo', type=str, default="ranknet", show_default=True, help="LTR algo name")
+@click.option('--ranknet-type', type=str, default="default", show_default=True, help="Ranknet type (default or factor)")
 @click.option('--optimizer', type=str, default="adam", show_default=True, help="optimizer type")
 @click.option('--window-size', type=int, default=512, show_default=True, help="optimizer type")
 @click.option('--batch-size', type=int, default=128, show_default=True, help="optimizer type")
-@click.option('--learning-rate', type=float, default=1e-4, show_default=True, help="learning rate")
+@click.option('--lr', type=float, default=1e-4, show_default=True, help="learning rate")
 @click.option('--graph-mode', type=bool, default=True, show_default=True, help="graph execution")
-def train(data_path, out_dir, exp_name, optimizer, window_size, batch_size, learning_rate, graph_mode):
-	MODEL_DIR = out_dir + "/models/" + exp_name
+def train(data_path, out_dir, algo, ranknet_type, optimizer, window_size, batch_size, lr, graph_mode):
+	MODEL_DIR = out_dir + "/models/" + algo
 	LOG_DIR = MODEL_DIR + "/log/"
 
 	if not os.path.exists(MODEL_DIR):
@@ -35,8 +37,12 @@ def train(data_path, out_dir, exp_name, optimizer, window_size, batch_size, lear
 	train_dataset = pairwise_batch_iterator(train_tf_records, window_size, batch_size, no_threads=8)
 	test_dataset = pairwise_batch_iterator(test_tf_records, window_size, batch_size, no_threads=2)
 
-	model = LTRModelLambdaRank(learning_rate=learning_rate)
-	# model.ranknet_type = "factor"
+	if algo == "lambdarank":
+		model = LTRModelLambdaRank(learning_rate=lr)
+	else:
+		model = LTRModelRanknet(learning_rate=lr)
+		model.ranknet_type = ranknet_type
+
 	model.create_optimizer(optimizer_type=optimizer)
 	model.create_checkpoint_manager(MODEL_DIR)
 	model.create_summary_writer(LOG_DIR)

@@ -276,14 +276,14 @@ class LTRModelRanknet(BaseTFModel):
 		if graph_mode:
 			print("Running Model in graph mode.............")
 			self.test_fuc = self.test_step
-			if self.ranknet_type == "norm":
+			if self.ranknet_type == "default":
 				self.train_fuc = self.train_step
 			else:
 				self.train_fuc = self.factorized_train_step
 		else:
 			print("Running Model in eager mode.............")
 			self.test_fuc = self._test_step
-			if self.ranknet_type == "norm":
+			if self.ranknet_type == "default":
 				self.train_fuc = self._train_step
 			else:
 				self.train_fuc = self._factorized_train_step
