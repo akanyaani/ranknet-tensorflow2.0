@@ -1,4 +1,4 @@
-# Implementation of Ranknet to LambdaRank in Tensorflow2.0
+# Implementation of Ranknet to LambdaRank in TensorFlow2.0
 
 **This repository has From RankNet to LambdaRank implementation in tensorflow 2.0, **
 
