@@ -5,13 +5,10 @@
 
 **Requirements**
 
-*  python >= 3.6
-*  setuptools==41.0.1
-*  ftfy==5.6
-*  tqdm==4.32.1
-*  Click==7.0
-*  tensorflow-gpu==2.0.0
-*  numpy==1.16.4
+* tqdm==4.32.1
+* numpy==1.16.4
+* Click==7.0
+* tensorflow_gpu==2.1.0
 
 **Setup**
 
