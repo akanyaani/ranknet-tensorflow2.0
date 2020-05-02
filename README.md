@@ -30,7 +30,7 @@ Options:
   --per-file-limit INTEGER  no of example per tfrecords  [default: 50000]
   --help                    Show this message and exit.
   
->> python pre_process.py
+>> python pre_process.py --data-dir data/path
 ```
 
 Pre-Training model on openwebtext or any other data
