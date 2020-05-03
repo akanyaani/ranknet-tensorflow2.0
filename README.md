@@ -47,8 +47,8 @@ Options:
   --algo TEXT            LTR algo name  [default: ranknet]
   --ranknet-type TEXT    Ranknet type (default or factor)  [default: default]
   --optimizer TEXT       optimizer type  [default: adam]
-  --window-size INTEGER  optimizer type  [default: 512]
-  --batch-size INTEGER   optimizer type  [default: 128]
+  --window-size INTEGER  window size  [default: 512]
+  --batch-size INTEGER   batch size  [default: 128]
   --lr FLOAT             learning rate  [default: 0.0001]
   --graph-mode BOOLEAN   graph execution  [default: True]
   --help                 Show this message and exit.
