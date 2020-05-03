@@ -17,8 +17,8 @@ from lambdarank import LTRModelLambdaRank
 @click.option('--algo', type=str, default="ranknet", show_default=True, help="LTR algo name")
 @click.option('--ranknet-type', type=str, default="default", show_default=True, help="Ranknet type (default or factor)")
 @click.option('--optimizer', type=str, default="adam", show_default=True, help="optimizer type")
-@click.option('--window-size', type=int, default=512, show_default=True, help="optimizer type")
-@click.option('--batch-size', type=int, default=128, show_default=True, help="optimizer type")
+@click.option('--window-size', type=int, default=512, show_default=True, help="q_id window-size")
+@click.option('--batch-size', type=int, default=128, show_default=True, help="batch-size")
 @click.option('--lr', type=float, default=1e-4, show_default=True, help="learning rate")
 @click.option('--graph-mode', type=bool, default=True, show_default=True, help="graph execution")
 def train(data_path, out_dir, algo, ranknet_type, optimizer, window_size, batch_size, lr, graph_mode):
