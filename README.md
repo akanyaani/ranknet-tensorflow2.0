@@ -58,7 +58,7 @@ Options:
 $ python train_model.py --data-path /data/path \
                         --out-dir /model/data/path \
                         --algo lambdarank \
-                        --batch-size=32 \
+                        --window-size=512 \
                         --batch-size 128 --lr 1e-4 \
                         --graph-mode True
 ```
