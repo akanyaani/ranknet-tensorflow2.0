@@ -2,4 +2,4 @@ tqdm==4.32.1
 numpy==1.16.4
 Click==7.0
 tensorflow_gpu==2.1.2
-tensorflow==2.1.0
+tensorflow==2.1.2
